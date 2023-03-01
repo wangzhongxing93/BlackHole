@@ -72,6 +72,8 @@ Future<void> main() async {
   runApp(MyApp());
 }
 
+/// Set display mode in Android, enable high refresh rate in devices with
+/// discrete framerates like 60Hz, 90Hz etc.
 Future<void> setOptimalDisplayMode() async {
   await FlutterDisplayMode.setHighRefreshRate();
   // final List<DisplayMode> supported = await FlutterDisplayMode.supported;
@@ -92,6 +94,7 @@ Future<void> setOptimalDisplayMode() async {
   // await FlutterDisplayMode.setPreferredMode(mostOptimalMode);
 }
 
+/// 注册音乐播放时Android前台服务
 Future<void> startService() async {
   await initializeLogging();
   final AudioPlayerHandler audioHandler = await AudioService.init(
