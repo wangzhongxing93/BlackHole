@@ -301,6 +301,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
+    /// MediaQuery.of获取当前设备的信息
     final bool rotated = MediaQuery.of(context).size.height < screenWidth;
     return GradientContainer(
       child: Scaffold(
@@ -491,12 +492,23 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
+        /// WillPopScope用于处理是否离开当前页面，
+        /// 以下几种情况我们会用到WillPopScope：
+        /// 1. 需要询问用户是否退出。
+        /// 2. App中有多个Navigator，想要的是让其中一个 Navigator 退出，
+        ///    而不是直接让在 Widget tree 底层的 Navigator 退出。
         body: WillPopScope(
           onWillPop: () => handleWillPop(context),
+          /// SafeArea：现如今的手机已经不能提供给应用程序规整的矩形界面了，一些带圆角或者是
+          /// 刘海屏让应用程序的布局更加复杂，甚至是需要单独适配，SafeArea通过MediaQuery
+          /// 检测屏幕的尺寸使应用程序的大小与屏幕适配（显示内容不会被刘海屏或者圆角遮盖）。
           child: SafeArea(
             child: Row(
               children: [
                 if (rotated)
+                  /// 在开发应用程序的时候有些数据是全局的，贯穿整个应用程序，比如用户信息，
+                  /// 我们希望当这些数据发生变化时，应用程序任何页面的数据都更新，
+                  /// ValueListenableBuilder组件就是解决此问题的。
                   ValueListenableBuilder(
                     valueListenable: _selectedIndex,
                     builder:

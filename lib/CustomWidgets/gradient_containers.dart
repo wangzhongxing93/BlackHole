@@ -21,6 +21,7 @@ import 'package:blackhole/Helpers/config.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+/// APP 背景、菜单栏、卡片渐变效果设置
 class GradientContainer extends StatefulWidget {
   final Widget? child;
   final bool? opacity;

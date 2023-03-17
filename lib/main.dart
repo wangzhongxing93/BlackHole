@@ -258,6 +258,8 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    /// SystemChrome APP全局属性，很像 Android 的 Application。控制操作系统图形界面的特定方面以及它如何与应用程序交互。
+    /// 需要注意的是在使用的时候一定要保证先执行 WidgetsFlutterBinding.ensureInitialized();
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -272,6 +274,7 @@ class _MyAppState extends State<MyApp> {
             : Brightness.dark,
       ),
     );
+    /// setPreferredOrientations 设置横屏或坚屏，这里支持所有方向的显示
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,

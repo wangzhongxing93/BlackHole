@@ -17,8 +17,12 @@ dependencies:
       url: https://github.com/Sangwan5688/Audiotagger
       ref: 90f2db5
   # bitsdojo_window: ^0.1.1+1 #For Desktops
+  # A flutter library to show images from the internet and keep them in the cache directory.
+  # Support Platform: ANDROID, IOS, MACOS
   cached_network_image: ^3.2.3
   carousel_slider: ^4.2.1
+  # This is an asset repo containing the default set of icon assets used by Flutter's Cupertino widgets
+  # Support Platform: ANDROID, IOS, MACOS, WINDOWS, LINUX, WEB
   cupertino_icons: ^1.0.5
   dart_des: ^1.0.2
   device_info_plus: ^8.0.0
@@ -43,11 +47,14 @@ dependencies:
   logging: ^1.1.1
   marquee: ^2.2.3
   material_design_icons_flutter: 5.0.5955-rc.1
+  # on_audio_query is a Flutter Plugin used to query audios/songs 🎶 infos [title, artist, album, etc..] from device storage.
   on_audio_query: ^2.6.1
   package_info_plus: ^3.0.2
   palette_generator: ^0.3.3+2
   path_provider: ^2.0.12
   permission_handler: ^10.2.0
+  # A flutter plugin that enables flutter apps to receive sharing photos, videos, text, urls or any other file types from another app.
+  # Support Platform: ANDROID, IOS
   receive_sharing_intent: ^1.4.5
   salomon_bottom_bar: ^3.3.1
   share_plus: ^6.3.0
