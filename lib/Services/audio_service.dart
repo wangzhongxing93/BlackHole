@@ -28,6 +28,7 @@ import 'package:blackhole/Helpers/mediaitem_converter.dart';
 import 'package:blackhole/Helpers/playlist.dart';
 import 'package:blackhole/Screens/Player/audioplayer.dart';
 import 'package:blackhole/Services/isolate_service.dart';
+import 'package:blackhole/Services/yt_music.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:just_audio/just_audio.dart';
@@ -46,6 +47,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
 
   late AudioPlayer? _player;
   late String preferredQuality;
+  late List<int> preferredCompactNotificationButtons = [1, 2, 3];
   late bool resetOnSkip;
   // late String? stationId = '';
   // late List<String> stationNames = [];
@@ -54,7 +56,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   final _equalizer = AndroidEqualizer();
 
   Box downloadsBox = Hive.box('downloads');
-  final List<MediaItem> refreshLinks = [];
+  final List<String> refreshLinks = [];
   bool jobRunning = false;
 
   final BehaviorSubject<List<MediaItem>> _recentSubject =
@@ -122,6 +124,9 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
 
   Future<void> _init() async {
     Logger.root.info('starting audio service');
+    preferredCompactNotificationButtons = Hive.box('settings')
+            .get('preferredCompactNotificationButtons', defaultValue: [1, 2, 3])
+        as List<int>;
     final session = await AudioSession.instance;
     await session.configure(const AudioSessionConfiguration.music());
 
@@ -154,10 +159,11 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
         }
       }
 
-      if (item.artUri.toString().startsWith('http') &&
-          item.genre != 'YouTube') {
-        addRecentlyPlayed(item);
-        _recentSubject.add([item]);
+      if (item.artUri.toString().startsWith('http')) {
+        if (item.genre != 'YouTube') {
+          addRecentlyPlayed(item);
+          _recentSubject.add([item]);
+        }
 
         if (recommend && item.extras!['autoplay'] as bool) {
           final List<MediaItem> mediaQueue = queue.value;
@@ -167,18 +173,28 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
             Logger.root.info('less than 5 songs remaining, adding more songs');
             Future.delayed(const Duration(seconds: 1), () async {
               if (item == mediaItem.value) {
-                final List value = await SaavnAPI().getReco(item.id);
-                value.shuffle();
-                // final List value = await SaavnAPI().getRadioSongs(
-                //     stationId: stationId!, count: queueLength - index - 20);
+                if (item.genre != 'YouTube') {
+                  final List value = await SaavnAPI().getReco(item.id);
+                  value.shuffle();
+                  // final List value = await SaavnAPI().getRadioSongs(
+                  //     stationId: stationId!, count: queueLength - index - 20);
 
-                for (int i = 0; i < value.length; i++) {
-                  final element = MediaItemConverter.mapToMediaItem(
-                    value[i] as Map,
-                    addedByAutoplay: true,
-                  );
-                  if (!mediaQueue.contains(element)) {
-                    addQueueItem(element);
+                  for (int i = 0; i < value.length; i++) {
+                    final element = MediaItemConverter.mapToMediaItem(
+                      value[i] as Map,
+                      addedByAutoplay: true,
+                    );
+                    if (!mediaQueue.contains(element)) {
+                      addQueueItem(element);
+                    }
+                  }
+                } else {
+                  final res = await YtMusicService()
+                      .getWatchPlaylist(videoId: item.id, limit: 5);
+                  Logger.root.info('Recieved recommendations: $res');
+                  refreshLinks.addAll(res);
+                  if (!jobRunning) {
+                    refreshJob();
                   }
                 }
               }
@@ -282,7 +298,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   Future<void> refreshJob() async {
     jobRunning = true;
     while (refreshLinks.isNotEmpty) {
-      addIdToBackgroundProcessingIsolate(refreshLinks.removeAt(0).id);
+      addIdToBackgroundProcessingIsolate(refreshLinks.removeAt(0));
     }
     jobRunning = false;
   }
@@ -362,7 +378,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
                 Logger.root.info(
                   'youtube link expired for ${mediaItem.title}, refreshing',
                 );
-                refreshLinks.add(mediaItem);
+                refreshLinks.add(mediaItem.id);
                 if (!jobRunning) {
                   refreshJob();
                 }
@@ -386,7 +402,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
               Logger.root.info(
                 'youtube link not found in cache for ${mediaItem.title}, refreshing',
               );
-              refreshLinks.add(mediaItem);
+              refreshLinks.add(mediaItem.id);
               if (!jobRunning) {
                 refreshJob();
               }
@@ -501,6 +517,27 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
     Logger.root.info('adding ${mediaitem.id} to recently played');
     List recentList = await Hive.box('cache')
         .get('recentSongs', defaultValue: [])?.toList() as List;
+
+    final Map songStats =
+        await Hive.box('stats').get(mediaitem.id, defaultValue: {}) as Map;
+
+    final Map mostPlayed =
+        await Hive.box('stats').get('mostPlayed', defaultValue: {}) as Map;
+
+    songStats['lastPlayed'] = DateTime.now().millisecondsSinceEpoch;
+    songStats['playCount'] =
+        songStats['playCount'] == null ? 1 : songStats['playCount'] + 1;
+    songStats['isYoutube'] = mediaitem.genre == 'YouTube';
+    songStats['title'] = mediaitem.title;
+    songStats['artist'] = mediaitem.artist;
+    songStats['album'] = mediaitem.album;
+    songStats['id'] = mediaitem.id;
+    Hive.box('stats').put(mediaitem.id, songStats);
+    if ((songStats['playCount'] as int) >
+        (mostPlayed['playCount'] as int? ?? 0)) {
+      Hive.box('stats').put('mostPlayed', songStats);
+    }
+    Logger.root.info('adding ${mediaitem.id} data to stats');
 
     final Map item = MediaItemConverter.mediaItemToMap(mediaitem);
     recentList.insert(0, item);
@@ -866,7 +903,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
           MediaAction.seekForward,
           MediaAction.seekBackward,
         },
-        androidCompactActionIndices: const [0, 2, 3],
+        androidCompactActionIndices: preferredCompactNotificationButtons,
         processingState: const {
           ProcessingState.idle: AudioProcessingState.idle,
           ProcessingState.loading: AudioProcessingState.loading,
